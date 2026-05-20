@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VOLTIX | Crypto & Gold Radar</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- ══ Supabase JS Client (CDN) ══ -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --neon-purple: #b829f5;
+      --neon-blue:   #00d4ff;
+      --neon-cyan:   #00fff5;
+      --neon-pink:   #ff2d78;
+      --neon-green:  #00ff88;
+      --bg-deep:     #030610;
+      --bg-card:     #070d1f;
+      --bg-card2:    #0a1128;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-deep);
+      font-family: 'Rajdhani', sans-serif;
+      color: #c8d8f0;
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* ── Animated grid background ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+      animation: gridMove 20s linear infinite;
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(184,41,245,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 90% 100%, rgba(0,212,255,0.08) 0%, transparent 50%),
+        radial-gradient(ellipse 40% 30% at 10% 80%, rgba(184,41,245,0.06) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    @keyframes gridMove {
+      0%   { transform: translateY(0); }
+      100% { transform: translateY(50px); }
+    }
+
+    .page-wrapper { position: relative; z-index: 1; }
+
+    /* ── HEADER ── */
+    .header {
+      background: linear-gradient(180deg, rgba(7,13,31,0.98) 0%, rgba(3,6,16,0.95) 100%);
+      border-bottom: 1px solid rgba(184,41,245,0.5);
+      box-shadow: 0 0 40px rgba(184,41,245,0.15), 0 0 80px rgba(0,212,255,0.05);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(20px);
+    }
+    .logo-text {
+      font-family: 'Orbitron', monospace;
+      font-weight: 900;
+      font-size: clamp(1.4rem, 4vw, 2.2rem);
+      letter-spacing: 0.12em;
+      background: linear-gradient(90deg, var(--neon-blue) 0%, var(--neon-purple) 50%, var(--neon-cyan) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 12px rgba(0,212,255,0.6));
+      animation: logoPulse 3s ease-in-out infinite;
+    }
+    @keyframes logoPulse {
+      0%,100% { filter: drop-shadow(0 0 12px rgba(0,212,255,0.6)); }
+      50%      { filter: drop-shadow(0 0 20px rgba(184,41,245,0.8)) drop-shadow(0 0 40px rgba(0,212,255,0.4)); }
+    }
+    .powered-by {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.65rem;
+      color: rgba(0,212,255,0.6);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+    .header-badge {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.65rem;
+      padding: 3px 10px;
+      border-radius: 2px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    .badge-live {
+      background: rgba(0,255,136,0.1);
+      border: 1px solid rgba(0,255,136,0.4);
+      color: var(--neon-green);
+      animation: badgePulse 1.5s ease-in-out infinite;
+    }
+    @keyframes badgePulse {
+      0%,100% { box-shadow: 0 0 0 rgba(0,255,136,0); }
+      50%      { box-shadow: 0 0 10px rgba(0,255,136,0.3); }
+    }
+    .badge-version {
+      background: rgba(184,41,245,0.1);
+      border: 1px solid rgba(184,41,245,0.4);
+      color: var(--neon-purple);
+    }
+
+    /* ── DB STATUS INDICATOR ── */
+    #dbStatusDot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #888;
+      box-shadow: 0 0 6px #888;
+      transition: background 0.5s, box-shadow 0.5s;
+    }
+    #dbStatusDot.connected {
+      background: var(--neon-green);
+      box-shadow: 0 0 6px var(--neon-green), 0 0 12px rgba(0,255,136,0.4);
+      animation: dotBlink 1.8s ease-in-out infinite;
+    }
+    #dbStatusDot.error {
+      background: var(--neon-pink);
+      box-shadow: 0 0 6px var(--neon-pink);
+    }
+    #dbStatusDot.connecting {
+      background: #f3ba2f;
+      box-shadow: 0 0 6px #f3ba2f;
+      animation: dotBlink 0.7s ease-in-out infinite;
+    }
+    @keyframes dotBlink {
+      0%,100% { opacity: 1; }
+      50%      { opacity: 0.4; }
+    }
+
+    /* ── STAT CARDS ── */
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid rgba(184,41,245,0.25);
+      border-radius: 6px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--neon-purple), var(--neon-blue), transparent);
+      animation: topLineScan 3s linear infinite;
+    }
+    .stat-card:nth-child(2)::before { animation-delay: -1s; }
+    .stat-card:nth-child(3)::before { animation-delay: -2s; }
+    @keyframes topLineScan {
+      0%   { opacity: 0; transform: translateX(-100%); }
+      20%  { opacity: 1; }
+      80%  { opacity: 1; }
+      100% { opacity: 0; transform: translateX(100%); }
+    }
+    .stat-card:hover {
+      border-color: rgba(0,212,255,0.5);
+      box-shadow: 0 0 25px rgba(0,212,255,0.1), inset 0 0 25px rgba(0,212,255,0.03);
+      transform: translateY(-2px);
+    }
+    .stat-card-corner { position: absolute; width: 10px; height: 10px; }
+    .stat-card-corner.tl { top:-1px; left:-1px; border-top:2px solid var(--neon-blue); border-left:2px solid var(--neon-blue); }
+    .stat-card-corner.br { bottom:-1px; right:-1px; border-bottom:2px solid var(--neon-purple); border-right:2px solid var(--neon-purple); }
+
+    .stat-value {
+      font-family: 'Orbitron', monospace;
+      font-weight: 700;
+      font-size: clamp(1.4rem, 3vw, 2rem);
+      background: linear-gradient(90deg, var(--neon-blue), var(--neon-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+    }
+    .stat-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.65rem;
+      color: rgba(0,212,255,0.5);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-top: 6px;
+    }
+    .stat-sub {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.6rem;
+      margin-top: 8px;
+      padding: 2px 8px;
+      border-radius: 2px;
+      display: inline-block;
+    }
+    .stat-sub.up      { color: var(--neon-green); background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.2); }
+    .stat-sub.neutral { color: var(--neon-blue);  background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.2); }
+    .stat-icon { width:44px; height:44px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; }
+    .icon-purple { background:rgba(184,41,245,0.12); border:1px solid rgba(184,41,245,0.3); box-shadow:0 0 15px rgba(184,41,245,0.15); }
+    .icon-blue   { background:rgba(0,212,255,0.10);  border:1px solid rgba(0,212,255,0.3);  box-shadow:0 0 15px rgba(0,212,255,0.15); }
+    .icon-green  { background:rgba(0,255,136,0.08);  border:1px solid rgba(0,255,136,0.3);  box-shadow:0 0 15px rgba(0,255,136,0.10); }
+
+    /* ── SECTION TITLE ── */
+    .section-title {
+      font-family: 'Orbitron', monospace;
+      font-size: clamp(0.75rem, 2vw, 0.9rem);
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--neon-blue);
+    }
+    .section-line { flex:1; height:1px; background:linear-gradient(90deg, rgba(0,212,255,0.4), transparent); }
+
+    /* ── TABLE ── */
+    .table-container {
+      background: var(--bg-card);
+      border: 1px solid rgba(184,41,245,0.2);
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 0 40px rgba(184,41,245,0.05), inset 0 0 60px rgba(0,0,0,0.3);
+    }
+    .table-header-bar {
+      background: linear-gradient(90deg, rgba(184,41,245,0.15), rgba(0,212,255,0.08), rgba(184,41,245,0.05));
+      border-bottom: 1px solid rgba(184,41,245,0.3);
+      padding: 14px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 10px;
+    }
+    .scan-line {
+      position: absolute;
+      left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(0,212,255,0.4), var(--neon-blue), rgba(0,212,255,0.4), transparent);
+      animation: scanDown 4s ease-in-out infinite;
+      pointer-events: none;
+    }
+    @keyframes scanDown {
+      0%   { top:0;    opacity: 0; }
+      5%   { opacity: 1; }
+      95%  { opacity: 1; }
+      100% { top:100%; opacity: 0; }
+    }
+    table { width:100%; border-collapse:collapse; }
+    thead th {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: rgba(0,212,255,0.55);
+      padding: 12px 20px;
+      text-align: left;
+      background: rgba(0,0,0,0.2);
+      border-bottom: 1px solid rgba(184,41,245,0.2);
+      white-space: nowrap;
+    }
+    tbody tr {
+      border-bottom: 1px solid rgba(184,41,245,0.08);
+      transition: background 0.25s ease;
+    }
+    tbody tr:hover { background: rgba(0,212,255,0.04); }
+    tbody tr:hover td { color: #e8f4ff; }
+    tbody td {
+      padding: 14px 20px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #8da8c8;
+      vertical-align: middle;
+    }
+
+    /* ── ROW ANIMATIONS ── */
+    @keyframes rowSlideIn {
+      from { opacity:0; transform: translateX(-12px); background: rgba(0,212,255,0.05); }
+      to   { opacity:1; transform: translateX(0);     background: transparent; }
+    }
+    .row-enter {
+      animation: rowSlideIn 0.45s ease forwards;
+    }
+
+    /* ── NEW ROW REALTIME FLASH ── */
+    @keyframes realtimeFlash {
+      0%   { background: rgba(0,255,136,0.18); box-shadow: inset 0 0 20px rgba(0,255,136,0.12); }
+      25%  { background: rgba(0,212,255,0.14); box-shadow: inset 0 0 30px rgba(0,212,255,0.1); }
+      50%  { background: rgba(0,255,136,0.10); box-shadow: inset 0 0 20px rgba(0,255,136,0.08); }
+      75%  { background: rgba(0,212,255,0.06); }
+      100% { background: transparent;          box-shadow: none; }
+    }
+    .row-realtime-flash {
+      animation: realtimeFlash 2s ease forwards !important;
+    }
+    /* Left border accent for new realtime row */
+    .row-realtime-flash td:first-child {
+      border-left: 3px solid var(--neon-green);
+    }
+
+    /* ── ASSET CELL ── */
+    .asset-cell { display:flex; align-items:center; gap:10px; }
+    .asset-icon {
+      width:32px; height:32px;
+      border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      font-size:1rem; flex-shrink:0;
+    }
+    .asset-name  { font-family:'Orbitron',monospace; font-size:0.75rem; font-weight:700; color:#d0e8ff; letter-spacing:0.05em; }
+    .asset-full  { font-family:'Share Tech Mono',monospace; font-size:0.6rem; color:rgba(0,212,255,0.4); margin-top:2px; }
+
+    /* ── TYPE BADGES ── */
+    .type-badge {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.62rem;
+      padding: 3px 10px;
+      border-radius: 2px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .type-buy          { background:rgba(0,255,136,0.08); border:1px solid rgba(0,255,136,0.35); color:var(--neon-green); box-shadow:0 0 8px rgba(0,255,136,0.1); }
+    .type-sell         { background:rgba(255,45,120,0.08); border:1px solid rgba(255,45,120,0.35); color:var(--neon-pink);  box-shadow:0 0 8px rgba(255,45,120,0.1); }
+    .type-accumulation { background:rgba(184,41,245,0.08); border:1px solid rgba(184,41,245,0.35); color:var(--neon-purple); box-shadow:0 0 8px rgba(184,41,245,0.1); }
+    .type-transfer     { background:rgba(0,212,255,0.08);  border:1px solid rgba(0,212,255,0.35);  color:var(--neon-blue); }
+
+    .volume-value { font-family:'Share Tech Mono',monospace; font-size:0.8rem; color:#b8d4f0; }
+    .volume-large { color:var(--neon-cyan); font-weight:700; }
+    .price-value  { font-family:'Orbitron',monospace; font-size:0.75rem; color:#c0d8f0; }
+    .time-value   { font-family:'Share Tech Mono',monospace; font-size:0.7rem; color:rgba(0,212,255,0.45); }
+
+    /* ── TOAST NOTIFICATION ── */
+    #toastContainer {
+      position: fixed;
+      top: 80px; right: 20px;
+      z-index: 9999;
+      display: flex; flex-direction: column; gap: 10px;
+      pointer-events: none;
+    }
+    .toast {
+      background: rgba(7,13,31,0.96);
+      border: 1px solid rgba(0,255,136,0.5);
+      border-left: 3px solid var(--neon-green);
+      border-radius: 4px;
+      padding: 12px 16px;
+      min-width: 260px;
+      max-width: 340px;
+      box-shadow: 0 0 20px rgba(0,255,136,0.15), 0 4px 20px rgba(0,0,0,0.5);
+      animation: toastIn 0.35s ease forwards;
+      pointer-events: auto;
+    }
+    @keyframes toastIn {
+      from { opacity:0; transform: translateX(20px); }
+      to   { opacity:1; transform: translateX(0); }
+    }
+    @keyframes toastOut {
+      from { opacity:1; transform: translateX(0); }
+      to   { opacity:0; transform: translateX(20px); }
+    }
+    .toast-title { font-family:'Orbitron',monospace; font-size:0.65rem; color:var(--neon-green); letter-spacing:0.1em; margin-bottom:4px; }
+    .toast-body  { font-family:'Share Tech Mono',monospace; font-size:0.65rem; color:rgba(200,220,240,0.8); }
+
+    /* ── TICKER ── */
+    .ticker-container {
+      background: rgba(0,0,0,0.4);
+      border-top: 1px solid rgba(184,41,245,0.2);
+      border-bottom: 1px solid rgba(0,212,255,0.15);
+      overflow: hidden; white-space: nowrap; padding: 8px 0;
+    }
+    .ticker-track { display:inline-flex; gap:50px; animation: tickerScroll 30s linear infinite; }
+    @keyframes tickerScroll {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    .ticker-item { font-family:'Share Tech Mono',monospace; font-size:0.68rem; color:rgba(0,212,255,0.55); letter-spacing:0.08em; display:flex; align-items:center; gap:8px; }
+    .ticker-item .up { color: var(--neon-green); }
+    .ticker-item .dn { color: var(--neon-pink); }
+    .ticker-dot { color:rgba(184,41,245,0.4); font-size:0.5rem; }
+
+    /* ── STATUS DOT (header) ── */
+    .status-dot {
+      width:8px; height:8px; border-radius:50%;
+      background: var(--neon-green);
+      box-shadow: 0 0 6px var(--neon-green), 0 0 12px rgba(0,255,136,0.4);
+      animation: dotBlink 1.8s ease-in-out infinite;
+    }
+
+    /* ── LOADING STATE ── */
+    #loadingState {
+      padding: 60px 20px; text-align: center;
+    }
+    .loading-spinner {
+      width: 36px; height: 36px;
+      border: 2px solid rgba(0,212,255,0.1);
+      border-top-color: var(--neon-blue);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── ERROR STATE ── */
+    #errorState { padding: 40px 20px; text-align: center; display: none; }
+
+    /* ── MISC ── */
+    .spin-btn { animation: spin 1s linear infinite; display: inline-block; }
+    @media (max-width: 768px) {
+      .desktop-col { display: none; }
+      .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      table { min-width: 520px; }
+      .header-badges { display: none; }
+    }
+    @media (max-width: 480px) {
+      .stat-value { font-size: 1.2rem; }
+    }
+    ::-webkit-scrollbar { width:6px; height:6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-deep); }
+    ::-webkit-scrollbar-thumb { background: rgba(184,41,245,0.4); border-radius:3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(184,41,245,0.7); }
+    @keyframes barFill  { from { width: 0; } }
+    @keyframes barPulse { 0%,100% { opacity:0.6; } 50% { opacity:1; } }
+  </style>
+</head>
+<body>
+<div id="toastContainer"></div>
+<div class="page-wrapper">
+
+  <!-- ════════════════ HEADER ════════════════ -->
+  <header class="header">
+    <div class="px-4 sm:px-6 py-4">
+      <div class="flex items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+          <div class="relative flex items-center gap-2">
+            <div style="width:42px;height:42px;background:linear-gradient(135deg,rgba(184,41,245,0.2),rgba(0,212,255,0.15));border:1px solid rgba(184,41,245,0.5);border-radius:6px;display:flex;align-items:center;justify-content:center;box-shadow:0 0 20px rgba(184,41,245,0.2);">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="url(#bolt)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                <defs>
+                  <linearGradient id="bolt" x1="3" y1="2" x2="21" y2="22">
+                    <stop offset="0%" stop-color="#00d4ff"/>
+                    <stop offset="100%" stop-color="#b829f5"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+            <div>
+              <div class="logo-text">VOLTIX</div>
+              <div class="powered-by">Powered by <span style="color:rgba(184,41,245,0.7);">Mohamed Naoui</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 flex-wrap header-badges">
+          <span class="header-badge badge-live">● LIVE</span>
+          <span class="header-badge badge-version">v2.4.1</span>
+          <div style="width:1px;height:24px;background:rgba(184,41,245,0.3);"></div>
+          <div class="flex items-center gap-2">
+            <div id="dbStatusDot" class="connecting"></div>
+            <span id="dbStatusText" style="font-family:'Share Tech Mono',monospace;font-size:0.62rem;color:#f3ba2f;letter-spacing:0.1em;">CONNECTING...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ════════════════ TICKER ════════════════ -->
+  <div class="ticker-container">
+    <div class="ticker-track">
+      <span class="ticker-item">BTC/USD <span class="up">▲ +2.34%</span> <span style="color:#8da8c8">$67,842.10</span></span>
+      <span class="ticker-dot">◆</span>
+      <span class="ticker-item">ETH/USD <span class="up">▲ +1.87%</span> <span style="color:#8da8c8">$3,521.44</span></span>
+      <span class="ticker-dot">◆</span>
+      <span class="ticker-item">XAU/USD <span class="dn">▼ -0.23%</span> <span style="color:#8da8c8">$2,384.60</span></span>
+      <span class="ticker-dot">◆</span>
+      <span class="ticker-item">SOL/USD <span class="up">▲ +4.12%</span> <span style="color:#8da8c8">$178.92</span></span>
+      <span class="ticker-dot">◆</span>
+      <span class="ticker-item">BNB/USD <span class="up">▲ +0.98%</span> <span style="color:#8da8c8">$598.33</span></span>
+      <span class="ticker-dot">◆</span>
+      <span class="ticker-item">XRP/USD <span class="dn">▼ -1.10%</span> <span style="color:#8da8c8">$0.5821</span></span>
+      <span class="ticker-dot">◆</span>
+      <span class="ticker-item">AVAX/USD <span class="up">▲ +3.55%</span> <span style="color:#8da8c8">$39.48</span></span>
+      <span class="ticker-dot">◆</span>
+      <span class="ticker-item">XAG/USD <span class="up">▲ +0.44%</span> <span style="color:#8da8c8">$29.17</span></span>
+      <span class="ticker-dot">◆</span>
+      <!-- Duplicate for seamless loop -->
+      <span class="ticker-item">BTC/USD <span class="up">▲ 
